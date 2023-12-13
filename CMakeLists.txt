@@ -24,6 +24,15 @@ set(PROJECT_SOURCES
         mainwindow.cpp
         mainwindow.h
         mainwindow.ui
+        IotListWidget.cpp
+        IotListWidget.h
+        IotListWidget.ui
+        IotDataChart.cpp
+        IotDataChart.h
+        IotDataChart.ui
+        IotItemWidget.cpp
+        IotItemWidget.h
+        IotItemWidget.ui
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)

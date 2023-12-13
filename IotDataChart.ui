@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+    <author/>
+    <comment/>
+    <exportmacro/>
+    <class>IotDataChart</class>
+    <widget class="QChartView" name="IotDataChart">
+        <property name="geometry">
+            <rect>
+                <x>0</x>
+                <y>0</y>
+                <width>400</width>
+                <height>300</height>
+            </rect>
+        </property>
+        <property name="windowTitle">
+            <string>IotDataChart</string>
+        </property>
+    </widget>
+    <pixmapfunction/>
+    <connections/>
+</ui>
