@@ -1,96 +1,134 @@
 #include "server.h"
 
 #include "session.h"
-#include "util.h"
 
-#include <algorithm>
+#include <QtLogging>
+#include <QDebug>
+
 #include <boost/asio/strand.hpp>
 #include <boost/beast/core.hpp>
-#include <boost/beast/websocket.hpp>
-#include <boost/beast/websocket/error.hpp>
-#include <cstdint>
-#include <cstdlib>
-#include <deque>
-#include <functional>
-#include <iostream>
-#include <map>
 #include <memory>
 #include <mutex>
-#include <string>
-#include <thread>
-#include <vector>
+#include <utility>
+
 
 namespace beast = boost::beast;
 namespace net = boost::asio;
+namespace websocket = boost::beast::websocket;
 using tcp = boost::asio::ip::tcp;
-
 
 namespace server {
 
-Server::Server(net::io_context &ioc) : mIdGen{0}, mIoc(ioc), mAcceptor(ioc) {}
+net::io_context ioc{7};
 
-void Server::run(tcp::endpoint endpoint) {
-  beast::error_code ec;
+Server* Server::_instance = nullptr;
 
-  mAcceptor.open(endpoint.protocol(), ec);
-  if (ec) {
-    fail(ec, "open");
-    return;
-  }
+Server *Server::instance() {
+    if(!Server::_instance) {
+        Server::_instance = new Server();
+    }
+    return Server::_instance;
+}
 
-  mAcceptor.set_option(net::socket_base::reuse_address(true), ec);
-  if (ec) {
-    fail(ec, "set_option");
-    return;
-  }
+Server::Server() : mIdGen{0}, mIoc(ioc), mAcceptor(ioc), mWork(net::make_work_guard(ioc)){}
 
-  mAcceptor.bind(endpoint, ec);
-  if (ec) {
-    fail(ec, "bind");
-    return;
-  }
+void Server::run(const tcp::endpoint& endpoint) {
+    beast::error_code ec;
 
-  mAcceptor.listen(net::socket_base::max_listen_connections, ec);
-  if (ec) {
-    fail(ec, "listen");
-    return;
-  }
-  doAccept();
+    mAcceptor.open(endpoint.protocol(), ec);
+    if (ec) {
+        qFatal() << "Server::run::open " << ec.what();
+        return;
+    }
+
+    mAcceptor.set_option(net::socket_base::reuse_address(true), ec);
+    if (ec) {
+        qFatal() << "Server::run::set_option " << ec.what();
+        return;
+    }
+
+    mAcceptor.bind(endpoint, ec);
+    if (ec) {
+        qFatal() << "Server::run::bind " << ec.what();
+        return;
+    }
+
+    mAcceptor.listen(net::socket_base::max_listen_connections, ec);
+    if (ec) {
+        qFatal() << "Server::run::listen " << ec.what();
+        return;
+    }
+    qDebug() << "Server: Accepting connection";
+    doAccept();
+
+    mThreads.reserve(7);
+    for (auto i = 7; i > 0; --i)
+        mThreads.emplace_back([] { ioc.run(); });
+}
+
+void Server::quit() {
+    quitAllNode();
+    mWork.reset();
+    mIoc.stop();
 }
 
 void Server::doAccept() {
-  mAcceptor.async_accept(
-      net::make_strand(mIoc),
-      beast::bind_front_handler(&Server::onAccept, shared_from_this()));
+    mAcceptor.async_accept(
+        net::make_strand(mIoc),
+        beast::bind_front_handler(&Server::onAccept, this));
 }
 
 void Server::onAccept(beast::error_code ec, tcp::socket socket) {
-  if (ec) {
-    fail(ec, "accept");
-  } else {
-    std::make_shared<Session>(*this, mIdGen, std::move(socket))->run();
-  }
-  doAccept();
+    if (ec) {
+        qFatal() << "Server::onAccept" << ec.what();
+    } else {
+        std::make_shared<Session>(mIdGen, std::move(socket))->run();
+    }
+    doAccept();
 }
 
 void Server::pauseNode(uint32_t id) {
-  std::lock_guard<std::mutex> lock(mMutex);
-  mSessions[id]->pause();
+    std::lock_guard<std::mutex> lock(mMutex);
+    mSessions[id]->pause();
 }
 
 void Server::unpauseNode(uint32_t id) {
-  std::lock_guard<std::mutex> lock(mMutex);
-  mSessions[id]->unpause();
+    std::lock_guard<std::mutex> lock(mMutex);
+    mSessions[id]->unpause();
 }
 
-void Server::addNode(uint32_t id, std::shared_ptr<Session> session) {
-  std::lock_guard<std::mutex> lock(mMutex);
-  mSessions[id] = session;
-  mIdGen++;
+void Server::togglePauseNode(uint32_t id) {
+    std::lock_guard<std::mutex> lock(mMutex);
+    mSessions[id]->togglePause();
 }
 
-void Server::removeNode(uint32_t id) {
-  std::lock_guard<std::mutex> lock(mMutex);
-  mSessions.erase(id);
+
+void Server::quitNode(uint32_t id) {
+    std::lock_guard<std::mutex> lock(mMutex);
+    mSessions[id]->quit();
+}
+
+void Server::quitAllNode(){
+    std::lock_guard<std::mutex> lock(mMutex);
+    for(auto [k, v]: mSessions){
+        v->quit();
+    }
+}
+
+void Server::addSession(uint32_t id, std::shared_ptr<Session> session) {
+    mMutex.lock();
+        mSessions[id] = std::move(session);
+        mIdGen++;
+    mMutex.unlock();
+
+    emit nodeAdded(id);
+}
+
+void Server::removeSession(uint32_t id) {
+    mMutex.lock();
+        mSessions.erase(id);
+    mMutex.unlock();
+
+    emit nodeRemoved(id);
 }
 } // namespace server

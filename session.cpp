@@ -1,10 +1,10 @@
 #include "session.h"
 
 #include "server.h"
-#include "util.h"
+
+#include <QDebug>
 
 #include <boost/beast/core/bind_handler.hpp>
-#include <iostream>
 
 namespace server {
 
@@ -12,75 +12,92 @@ namespace beast = boost::beast;
 namespace http = beast::http;
 namespace websocket = beast::websocket;
 
-Session::Session(Server &server, uint32_t id, tcp::socket &&socket)
-    : mId(id), mWs(std::move(socket)), mServer(server) {}
+Session::Session(uint32_t id, tcp::socket &&socket)
+    : mId(id), mWs(std::move(socket)){}
 
-void Session::run() {
-  mServer.addNode(mId, shared_from_this());
-
-  mWs.set_option(
-      websocket::stream_base::timeout::suggested(beast::role_type::server));
-  mWs.set_option(
-      websocket::stream_base::decorator([](websocket::response_type &res) {
-        res.set(http::field::server, std::string(BOOST_BEAST_VERSION_STRING) +
-                                         " websocket-server-async");
-      }));
-
-  mWs.async_accept(
-      beast::bind_front_handler(&Session::onAccept, shared_from_this()));
+Session::~Session(){
 }
 
-void Session::showData() {
-  for (auto &data : mData) {
-    std::cout << data << " ";
-  }
+void Session::run() {
+    Server::instance()->addSession(mId, shared_from_this());
+
+    mWs.set_option(
+        websocket::stream_base::timeout::suggested(beast::role_type::server));
+    mWs.set_option(
+        websocket::stream_base::decorator([](websocket::response_type &res) {
+            res.set(http::field::server, std::string(BOOST_BEAST_VERSION_STRING) +
+                                             " websocket-server-async");
+        }));
+
+    mWs.async_accept(
+        beast::bind_front_handler(&Session::onAccept, shared_from_this()));
 }
 
 void Session::pause(){
-  doWrite(IOT_MESSAGE_PAUSE);
+    isPause = true;
+    doWrite(IOT_MESSAGE_PAUSE);
 }
 
 void Session::unpause(){
-  doWrite(IOT_MESSAGE_UNPAUSE);
+    isPause = false;
+    doWrite(IOT_MESSAGE_UNPAUSE);
+}
+
+void Session::togglePause() {
+    if(!isPause) pause();
+    else unpause();
+}
+
+void Session::quit(){
+    std::string message(IOT_MESSAGE_QUIT);
+    mWs.async_write(
+            boost::asio::buffer(message.data(), message.size()),
+            beast::bind_front_handler(&Session::onQuit, shared_from_this()));
+}
+
+void Session::onQuit(boost::beast::error_code ec, std::size_t nbytes){
+    if(ec){
+        qFatal() << "Session::onQuit: " << ec.what();
+    }
+    Server::instance()->removeSession(mId);
 }
 
 void Session::onAccept(beast::error_code ec) {
-  if (ec)
-    return;
-  doRead();
+    if (ec)
+        return;
+    doRead();
 }
 
 void Session::doWrite(std::string message) {
-  mWs.async_write(
-      boost::asio::buffer(message.data(), message.size()),
-      beast::bind_front_handler(&Session::onWrite, shared_from_this()));
+    mWs.async_write(
+        boost::asio::buffer(message.data(), message.size()),
+        beast::bind_front_handler(&Session::onWrite, shared_from_this()));
 }
 
 void Session::onWrite(boost::beast::error_code ec, std::size_t nbytes) {
-  if(ec){
-    fail(ec, "async_write");
-  }
+    if(ec){
+        qFatal() << "Session::onWrite: " << ec.what();
+    }
 }
 
 void Session::doRead() {
-  mWs.binary(true);
-  mWs.async_read(
-      mBuffer, beast::bind_front_handler(&Session::onRead, shared_from_this()));
+    mWs.binary(true);
+    mWs.async_read(
+        mBuffer, beast::bind_front_handler(&Session::onRead, shared_from_this()));
 }
 
 void Session::onRead(beast::error_code ec, std::size_t nbytes) {
-  if (ec) {
-    mServer.removeNode(mId);
-    return;
-  }
-  if (nbytes == sizeof(int)) {
-    uint32_t recvInt;
-    std::memcpy(&recvInt, mBuffer.data().data(), sizeof(uint32_t));
-
-    mData.push_back(recvInt);
-    std::cout << mId << ": " << recvInt << std::endl;
-  }
-  mBuffer.consume(mBuffer.size());
-  doRead();
+    if (ec) {
+        return;
+    }
+    if (nbytes == sizeof(uint32_t) * 2) {
+        uint32_t recvInt[2];
+        boost::asio::buffer_copy(boost::asio::buffer(&recvInt, sizeof(recvInt)), mBuffer.data());
+        emit Server::instance()->newData(mId, recvInt[0], recvInt[1]);
+    }
+    mBuffer.consume(mBuffer.size());
+    doRead();
 }
+
+
 } // namespace server

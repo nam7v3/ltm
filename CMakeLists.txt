@@ -33,16 +33,16 @@ set(PROJECT_SOURCES
         IotItemWidget.cpp
         IotItemWidget.h
         IotItemWidget.ui
+        server.h
+        session.h
+        session.cpp
+        server.cpp
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(ltm_app
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
-        server.h
-        session.h
-        session.cpp
-        server.cpp
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET ltm_app APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
