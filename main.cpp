@@ -1,7 +1,11 @@
 #include <QApplication>
 
+#include "server.h"
 #include "mainwindow.h"
 
+#include <boost/asio.hpp>
+
+using Server = server::Server;
 namespace net = boost::asio;
 
 int main(int argc, char *argv[]) {

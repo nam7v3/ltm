@@ -18,5 +18,6 @@ class MainWindow : public QMainWindow {
 
  private:
   Ui::MainWindow *ui;
+  int numNode;
 };
 #endif  // MAINWINDOW_H

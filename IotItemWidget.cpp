@@ -2,6 +2,9 @@
 #include "ui_IotItemWidget.h"
 
 #include <QState>
+#include "server.h"
+
+using Server = server::Server;
 
 IotItemWidget::IotItemWidget(uint32_t id, QWidget *parent) :
         QWidget(parent), ui(new Ui::IotItemWidget), id(id), pauseStateMachine(new QStateMachine){
@@ -24,6 +27,13 @@ IotItemWidget::IotItemWidget(uint32_t id, QWidget *parent) :
 
     pauseStateMachine.setInitialState(pauseState);
     pauseStateMachine.start();
+
+    connect(ui->quitButton, &QPushButton::pressed, [id](){
+        Server::instance()->quitNode(id);
+    });
+    connect(ui->pauseButton, &QPushButton::pressed, [id](){
+        Server::instance()->togglePauseNode(id);
+    });
 }
 
 IotItemWidget::~IotItemWidget() {

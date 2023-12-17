@@ -12,6 +12,10 @@ IotDataChart::IotDataChart(QWidget *parent) :
         QChartView(parent), ui(new Ui::IotDataChart), series(){
     ui->setupUi(this);
 
+    connect(Server::instance(), &Server::newData, this, &IotDataChart::newData);
+    connect(Server::instance(), &Server::nodeAdded, this, &IotDataChart::newNode);
+    connect(Server::instance(), &Server::nodeRemoved, this, &IotDataChart::removeNode);
+
     auto xAxis = new QValueAxis();
     auto yAxis = new QValueAxis();
 
