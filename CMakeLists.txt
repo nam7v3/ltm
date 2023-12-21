@@ -62,9 +62,14 @@ else()
     endif()
 endif()
 
+
 target_link_libraries(ltm_app
     PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Charts Qt${QT_VERSION_MAJOR}::StateMachine
     PRIVATE ${Boost_LIBRARIES})
+
+add_executable(ltm_client client.cpp)
+
+target_link_libraries(ltm_client PRIVATE ${Boost_LIBRARIES})
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an

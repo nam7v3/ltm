@@ -124,7 +124,7 @@ int main(int argc, char **argv) {
     if (argc != 4) {
       std::cerr << "Usage: " << argv[0] << " <host> <port> <sec>\n"
                 << "Example:\n"
-                << "    " << argv[0] << " echo.websocket.org 80\n";
+                << "    " << argv[0] << " localhost 8080 3\n";
       return EXIT_FAILURE;
     }
     net::io_context ioc;
