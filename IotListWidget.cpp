@@ -1,8 +1,9 @@
 #include "IotListWidget.h"
 #include "ui_IotListWidget.h"
 
-#include <memory>
 #include "server.h"
+
+#include <memory>
 
 using namespace server;
 

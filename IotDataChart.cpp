@@ -1,5 +1,6 @@
 #include "IotDataChart.h"
 #include "ui_IotDataChart.h"
+
 #include "server.h"
 
 #include <QtLogging>

@@ -40,7 +40,7 @@ set(PROJECT_SOURCES
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
-    qt_add_executable(ltm_app
+    qt_add_executable(ltm_server
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
     )
@@ -56,14 +56,14 @@ else()
 # Define properties for Android with Qt 5 after find_package() calls as:
 #    set(ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android")
     else()
-        add_executable(ltm_app
+        add_executable(ltm_server
             ${PROJECT_SOURCES}
         )
     endif()
 endif()
 
 
-target_link_libraries(ltm_app
+target_link_libraries(ltm_server
     PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Charts Qt${QT_VERSION_MAJOR}::StateMachine
     PRIVATE ${Boost_LIBRARIES})
 
@@ -77,7 +77,7 @@ target_link_libraries(ltm_client PRIVATE ${Boost_LIBRARIES})
 if(${QT_VERSION} VERSION_LESS 6.1.0)
   set(BUNDLE_ID_OPTION MACOSX_BUNDLE_GUI_IDENTIFIER com.example.ltm_app)
 endif()
-set_target_properties(ltm_app PROPERTIES
+set_target_properties(ltm_server PROPERTIES
     ${BUNDLE_ID_OPTION}
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
@@ -86,12 +86,12 @@ set_target_properties(ltm_app PROPERTIES
 )
 
 include(GNUInstallDirs)
-install(TARGETS ltm_app
+install(TARGETS ltm_server
     BUNDLE DESTINATION .
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
 if(QT_VERSION_MAJOR EQUAL 6)
-    qt_finalize_executable(ltm_app)
+    qt_finalize_executable(ltm_server)
 endif()
