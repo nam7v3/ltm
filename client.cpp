@@ -29,7 +29,9 @@ public:
       : mSec(sec), mTimer(ioc), mWs(ioc), mResolver(ioc) {
     srand(time(NULL));
   }
-
+  ~IotNode(){
+    doClose();
+  }
   void run(const std::string &host, const std::string &port) {
     auto const results = mResolver.resolve(host, port);
     auto ep = net::connect(mWs.next_layer(), results);
@@ -66,10 +68,9 @@ private:
                 << std::endl;
       std::string recvMsg = beast::buffers_to_string(mReadBuffer.data());
       if (recvMsg == "PAUSE") {
-        mPause = true;
         std::cout << "Pausing node..." << std::endl;
+        mTimer.cancel();
       } else if (recvMsg == "UNPAUSE") {
-        mPause = false;
         std::cout << "Unpausing node..." << std::endl;
         doWrite();
       } else if (recvMsg == "QUIT") {
@@ -84,7 +85,7 @@ private:
   void doWrite() {
     mWs.binary(true);
     mTimer.async_wait([this](const boost::system::error_code &ec) {
-      if (!ec && !mPause && mRunning) {
+      if (!ec && mRunning) {
         generateData();
         mWs.async_write(
             asio::buffer(&mData, sizeof(mData)),
@@ -92,8 +93,6 @@ private:
               if (!ec) {
                 mTimer.expires_from_now(std::chrono::seconds(mSec));
                 doWrite();
-              } else {
-                std::cerr << "doWrite: " <<ec.what() << std::endl;
               }
             });
       }
@@ -104,13 +103,13 @@ private:
     mWs.async_close(websocket::close_code::normal,
                     [this](const boost::system::error_code &ec) {
                       if (ec) { }
+                      std::cerr << "Closing the connection" << std::endl;
                       mRunning = false;
                     });
   }
 
 private:
   uint32_t mData[2];
-  bool mPause = false;
   bool mRunning = true;;
   int mSec;
   beast::flat_buffer mReadBuffer;

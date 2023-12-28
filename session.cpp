@@ -57,7 +57,7 @@ void Session::quit(){
 
 void Session::onQuit(boost::beast::error_code ec, std::size_t nbytes){
     if(ec){
-        qFatal() << "Session::onQuit: " << ec.what();
+        qInfo() << "Session::onQuit: " << ec.what();
     }
     Server::instance()->removeSession(mId);
 }
@@ -76,7 +76,7 @@ void Session::doWrite(std::string message) {
 
 void Session::onWrite(boost::beast::error_code ec, std::size_t nbytes) {
     if(ec){
-        qFatal() << "Session::onWrite: " << ec.what();
+        qDebug() << "Session::onWrite: " << ec.what();
     }
 }
 
